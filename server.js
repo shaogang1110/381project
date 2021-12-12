@@ -1,9 +1,12 @@
 const express = require('express');
 const session = require('cookie-session');
 const bodyParser = require('body-parser');
-const PORT = process.env.PORT || 8099;
 const app = express();
-
+const assert = require('assert');
+const mongodb = require('mongodb');
+const mongodbUrl='mongodb+srv://samsonmak:samson123@cluster0.7tdpu.mongodb.net/s381miniprj?retryWrites=true&w=majority';
+const MongoClient = require('mongodb').MongoClient;
+const dbName='s381miniprj';
 app.set('view engine','ejs');
 
 const SECRETKEY = 'login success';
@@ -14,18 +17,18 @@ const users = new Array(
 );
 
 app.set('view engine','ejs');
-
 app.use(session({
   name: 'loginSession',
   keys: [SECRETKEY]
 }));
 
-app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
+app.use(bodyParser.json());
+
 
 app.get('/', (req,res) => {
 	console.log(req.session);
-	if (!req.session.authenticated) {    
+	if (!req.session.authenticated) {    // user not logged in!
 		res.redirect('/login');
 	} else {
 		res.status(200).render('inventory',{name:req.session.username});
@@ -39,44 +42,54 @@ app.get('/login', (req,res) => {
 app.post('/login', (req,res) => {
 	users.forEach((user) => {
 		if (user.name == req.body.name && user.password == req.body.password) {
-			req.session.authenticated = true;        
-			req.session.username = req.body.name;	 		
+			// correct user name + password
+			// store the following name/value pairs in cookie session
+			req.session.authenticated = true;        // 'authenticated': true
+			req.session.username = req.body.name;	 // 'username': req.body.name		
 		}
 	});
 	res.redirect('/');
 });
 
 app.get('/create' , (req ,res)=>{
-    res.status(200).render('create');
+    res.render('create');
 });
 
 app.post('/create',(req, res)=>{
-    var name = entities.encode(req.body.name);
-    var inv_type = entities.encode(req.body.inv_type);
-    var quantity = entities.encode(req.body.quantity);
-    var street = entities.encode(req.body.street);
-    var building = entities.encode(req.body.building);
-	var country = entities.encode(req.body.country);
-	var zipcode = entities.encode(req.body.zipcode);
-	var latitude = entities.encode(req.body.latitude);
-	var longitude = entities.encode(req.body.longitude);
-    Material.addMaterial({
-        name:name,inv_type:inv_type,quantityy:quantity,street:street,building:building,country:country,zipcode:zipcode,latitude:latitude,longitude:longitude
-    } , (err , material)=>{
-        if(err)
-        { res.render('404', {
-            msg:'Please fill required details!'
-        })}
-        var obj = material;
-        res.redirect('/inventory');  
-    });
+	const client = new MongoClient(mongodbUrl);
+
+	var data={
+		"name":req.body.name,
+		"type":req.body.inv_type,
+		"quantity":req.body.quantity,
+		"street":req.body.street,
+		"building":req.body.building,
+		"country":req.body.country,
+		"zipcode":req.body.zipcode,
+		"latitude":req.body.latitude,
+		"longitude":req.body.longitude,
+		"photo":req.body.photo
+	};
+    client.connect((err,db) => {
+        assert.equal(null, err);
+        console.log("Connected successfully to server");
+        const dbo = db.db(dbName);
+		delete req.body._id;
+		dbo.collection('inventory').insertOne(data,function(err, collection){
+			if (err) throw err;
+        	console.log("Record inserted Successfully");
+			res.render('/');
+			client.close();
+		});
+	});
+	return res.redirect('/');
 });
 
 
 
 app.get('/logout', (req,res) => {
-	req.session = null;   
+	req.session = null;   // clear cookie-session
 	res.redirect('/');
 });
 
-app.listen(PORT);
+app.listen(process.env.PORT || 8099);
