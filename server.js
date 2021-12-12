@@ -7,6 +7,7 @@ const mongodb = require('mongodb');
 const mongodbUrl='mongodb+srv://samsonmak:samson123@cluster0.7tdpu.mongodb.net/s381miniprj?retryWrites=true&w=majority';
 const MongoClient = require('mongodb').MongoClient;
 const dbName='s381miniprj';
+const PORT=process.env.PORT || 8099;
 app.set('view engine','ejs');
 
 const SECRETKEY = 'login success';
@@ -92,4 +93,4 @@ app.get('/logout', (req,res) => {
 	res.redirect('/');
 });
 
-app.listen(process.env.PORT || 8099);
+app.listen(PORT);
